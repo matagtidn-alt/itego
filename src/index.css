@@ -1,0 +1,136 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-syne: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+}
+
+:root {
+  --bg: #F4F4F4;
+  --ink: #000000;
+  --accent: #00AA13;
+  --bg-card: #FFFFFF;
+}
+
+/* Global Font Enforcement */
+html, body, #root {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings and Display Typography */
+h1, h2, h3, h4, h5, h6, .hero-title, .font-display {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+input, select, textarea, button, optgroup, option {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+code, kbd, samp, pre, .font-mono, .label-v16, .price-tag, .ticket-code {
+  font-family: 'Space Mono', monospace;
+}
+
+/* Variation 16 Utility Styles (Gojek Inspired) */
+.label-v16 {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #666666;
+  font-weight: 600;
+}
+
+.service-card-v16 {
+  background: #ffffff;
+  border: 2px solid #eeeeee;
+  border-radius: 18px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.service-card-v16:hover {
+  border-color: #c8e6c9;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 170, 19, 0.08);
+}
+
+.service-card-v16.active {
+  border-color: #00AA13;
+  background: #f9fff9;
+  box-shadow: 0 12px 28px rgba(0, 170, 19, 0.12);
+}
+
+.btn-confirm-v16 {
+  background: #00AA13;
+  color: #ffffff;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-confirm-v16:hover {
+  background: #009310;
+  box-shadow: 0 8px 24px rgba(0, 170, 19, 0.35);
+  transform: translateY(-1px);
+}
+
+.status-pill-v16 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #e8f5e9;
+  color: #00AA13;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: 1px solid rgba(0, 170, 19, 0.2);
+}
+
+.total-box-v16 {
+  background: #000000;
+  color: #ffffff;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+::selection {
+  background: #00AA13;
+  color: #ffffff;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f4f4f4;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}

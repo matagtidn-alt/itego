@@ -1,0 +1,6 @@
+{
+  "name": "ITEGO - Rental, Ojek & Driver Gili Trawangan & Lombok",
+  "description": "Layanan sewa sepeda kayuh & ojek listrik di Gili Trawangan serta driver mobil penjemputan Pelabuhan Bangsal ke destinasi wisata Lombok Timur.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

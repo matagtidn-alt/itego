@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   QrCode, 
@@ -7,7 +7,12 @@ import {
   CreditCard, 
   Banknote, 
   ShieldCheck, 
-  Clock
+  Clock,
+  Sparkles,
+  CheckCircle2,
+  Loader2,
+  Smartphone,
+  Radio
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Booking, PaymentMethod, Language } from '../types';
@@ -22,6 +27,13 @@ interface PaymentModalProps {
   bookingDraft: any;
   onConfirmBooking: (finalBooking: Booking) => void;
   language: Language;
+}
+
+interface MockTransaction {
+  refId: string;
+  source: string;
+  amount: number;
+  timestamp: string;
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -41,6 +53,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [timeLeft, setTimeLeft] = useState(900); // 15 mins
 
+  // Mock QRIS Verification Flow States
+  const [qrisStep, setQrisStep] = useState<'waiting' | 'detecting' | 'verified'>('waiting');
+  const [detectedTx, setDetectedTx] = useState<MockTransaction | null>(null);
+  const [autoSimulateSeconds, setAutoSimulateSeconds] = useState(8);
+  const [isAutoSimulateActive, setIsAutoSimulateActive] = useState(true);
+
+  const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const finalizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // General 15-min countdown timer
   useEffect(() => {
     if (!isOpen) return;
     const timer = setInterval(() => {
@@ -48,6 +70,45 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }, 1000);
     return () => clearInterval(timer);
   }, [isOpen]);
+
+  // Reset QRIS verification state when switching methods
+  useEffect(() => {
+    if (paymentMethod !== 'qris') {
+      setQrisStep('waiting');
+      setDetectedTx(null);
+      setIsProcessing(false);
+      if (verificationTimeoutRef.current) clearTimeout(verificationTimeoutRef.current);
+      if (finalizeTimeoutRef.current) clearTimeout(finalizeTimeoutRef.current);
+    }
+  }, [paymentMethod]);
+
+  // Auto-simulation countdown for QRIS
+  useEffect(() => {
+    if (!isOpen || paymentMethod !== 'qris' || qrisStep !== 'waiting' || !isAutoSimulateActive) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setAutoSimulateSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          triggerSimulatedQrisPayment('BCA Mobile / GoPay (Auto-Detected)');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, paymentMethod, qrisStep, isAutoSimulateActive]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (verificationTimeoutRef.current) clearTimeout(verificationTimeoutRef.current);
+      if (finalizeTimeoutRef.current) clearTimeout(finalizeTimeoutRef.current);
+    };
+  }, []);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -64,7 +125,62 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const handleComplete = () => {
+  // Trigger Mock QRIS Verification Flow
+  const triggerSimulatedQrisPayment = (customSource?: string) => {
+    if (qrisStep !== 'waiting') return;
+
+    setQrisStep('detecting');
+    setIsProcessing(true);
+
+    const sourceName = customSource || `m-Banking / GoPay (${bookingDraft.customerName || 'Pembeli'})`;
+    const mockTx: MockTransaction = {
+      refId: `QRIS-${Math.floor(100000 + Math.random() * 900000)}`,
+      source: sourceName,
+      amount: bookingDraft.totalPrice,
+      timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    };
+    setDetectedTx(mockTx);
+
+    // Step 2: After 1.3s, payment is validated & status updated to 'lunas'
+    verificationTimeoutRef.current = setTimeout(() => {
+      setQrisStep('verified');
+
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 75,
+          origin: { y: 0.6 },
+          colors: ['#00AA13', '#10E575', '#000000', '#FFFFFF'],
+        });
+      } catch (e) {
+        // safe fallback
+      }
+
+      // Step 3: Automatically finalize booking with 'lunas' status
+      finalizeTimeoutRef.current = setTimeout(() => {
+        const finalBooking: Booking = {
+          ...bookingDraft,
+          id: `ITG-${Math.floor(1000 + Math.random() * 9000)}`,
+          paymentMethod: 'qris',
+          paymentStatus: 'lunas', // <-- Automatically marked as LUNAS
+          bookingStatus: 'terkonfirmasi',
+          createdAt: new Date().toISOString(),
+        };
+
+        setIsProcessing(false);
+        onConfirmBooking(finalBooking);
+      }, 1600);
+    }, 1300);
+  };
+
+  // Manual complete for Cash or Bank Transfer
+  const handleManualComplete = () => {
+    if (paymentMethod === 'qris') {
+      // If user clicks button directly in QRIS mode, run the verification simulation
+      triggerSimulatedQrisPayment('m-Banking App (Manual Confirmation)');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -137,19 +253,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </span>
             </div>
             
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-600 font-bold">{t.formTotalLabel}:</span>
-              <span className="text-2xl font-extrabold text-[#00AA13]">
-                {formatRupiah(bookingDraft.totalPrice)}
-              </span>
+            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+              <div>
+                <p className="text-[10px] text-gray-400 font-mono uppercase">PEMESAN</p>
+                <p className="font-bold text-black">{bookingDraft.customerName} ({bookingDraft.customerPhone})</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400 font-mono uppercase">TOTAL BAYAR</p>
+                <p className="font-extrabold text-base text-[#00AA13]">
+                  {formatRupiah(bookingDraft.totalPrice)}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Payment Method Switcher Tabs */}
+          {/* Payment Method Selector */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-2">
-              {language === 'id' ? 'Pilih Cara Bayar:' : 'Select Payment Method:'}
-            </label>
+            <label className="label-v16 block mb-2">PILIH METODE PEMBAYARAN:</label>
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
@@ -192,9 +312,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           </div>
 
-          {/* METHOD 1: QRIS SCREEN */}
+          {/* METHOD 1: QRIS SCREEN WITH MOCK VERIFICATION FLOW */}
           {paymentMethod === 'qris' && (
             <div className="bg-white p-4 rounded-2xl border-2 border-gray-200 space-y-4 shadow-2xs">
+              
+              {/* Header bar */}
               <div className="flex items-center justify-between border-b border-gray-200 pb-2.5">
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold text-rose-600 text-sm tracking-tight">QRIS</span>
@@ -206,8 +328,54 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
               </div>
 
-              {/* QR Code Container */}
-              <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+              {/* Status Banner */}
+              {qrisStep === 'waiting' && (
+                <div className="bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-amber-800">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span>Menunggu Pembayaran (Auto-polling aktif)...</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-amber-700 bg-white px-2 py-0.5 rounded-full border border-amber-300/60">
+                    STATUS: BELUM BAYAR
+                  </span>
+                </div>
+              )}
+
+              {qrisStep === 'detecting' && (
+                <div className="bg-emerald-50 border border-[#00AA13]/40 rounded-xl px-3.5 py-2.5 flex items-center gap-2.5 animate-pulse">
+                  <Loader2 className="w-4 h-4 text-[#00AA13] animate-spin shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs font-extrabold text-[#00AA13]">
+                      Sinyal Pembayaran Diterima!
+                    </p>
+                    <p className="text-[10px] text-emerald-800 font-medium">
+                      Memverifikasi mutasi transaksi dari Bank Indonesia / PJSP...
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {qrisStep === 'verified' && (
+                <div className="bg-[#E8F5E9] border-2 border-[#00AA13] rounded-xl px-3.5 py-2.5 flex items-center gap-2.5 animate-in zoom-in-95 duration-200">
+                  <div className="w-7 h-7 rounded-full bg-[#00AA13] text-white flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-black text-[#00AA13] flex items-center gap-1.5">
+                      PEMBAYARAN QRIS TERVERIFIKASI!
+                      <span className="bg-[#00AA13] text-white text-[9px] px-1.5 py-0.5 rounded-md font-mono">
+                        LUNAS
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-gray-700 font-semibold">
+                      Pesanan Anda otomatis diubah ke status LUNAS. Mengalihkan ke tiket...
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* QR Code Container with Scanner Laser & Interactive States */}
+              <div className="relative flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-300 overflow-hidden">
                 <p className="text-[11px] font-extrabold text-black uppercase mb-1">
                   ITEGO TRANSPORT LOMBOK & GILI
                 </p>
@@ -215,8 +383,34 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   NMID: ID102026891001-ITEGO
                 </p>
 
-                {/* Clean Scannable QR Matrix */}
-                <div className="relative p-3 bg-white rounded-2xl shadow-md border-2 border-[#00AA13]">
+                {/* Scannable QR Matrix with Laser Beam */}
+                <div className="relative p-3 bg-white rounded-2xl shadow-md border-2 border-[#00AA13] overflow-hidden">
+                  
+                  {/* Laser Beam Animation when waiting */}
+                  {qrisStep === 'waiting' && (
+                    <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#00AA13] to-transparent shadow-[0_0_10px_#00AA13] animate-qris-scan z-10 pointer-events-none" />
+                  )}
+
+                  {/* Verifying / Detected Overlay */}
+                  {qrisStep === 'detecting' && (
+                    <div className="absolute inset-0 bg-white/85 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center p-4 text-center">
+                      <Loader2 className="w-8 h-8 text-[#00AA13] animate-spin mb-2" />
+                      <p className="text-xs font-black text-black">Memverifikasi Mutasi...</p>
+                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">Mencocokkan Nominal QRIS</p>
+                    </div>
+                  )}
+
+                  {/* Verified Overlay */}
+                  {qrisStep === 'verified' && (
+                    <div className="absolute inset-0 bg-[#00AA13]/90 text-white z-20 flex flex-col items-center justify-center p-4 text-center animate-in zoom-in-95">
+                      <div className="w-12 h-12 rounded-full bg-white text-[#00AA13] flex items-center justify-center mb-2 shadow-lg">
+                        <Check className="w-7 h-7 stroke-[3]" />
+                      </div>
+                      <p className="text-xs font-black tracking-wider uppercase">LUNAS</p>
+                      <p className="text-[10px] text-emerald-100 font-mono">Status: Terkonfirmasi</p>
+                    </div>
+                  )}
+
                   <svg
                     viewBox="0 0 160 160"
                     className="w-44 h-44 mx-auto"
@@ -252,7 +446,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     {/* Center Area Pattern */}
                     <rect x="55" y="55" width="50" height="50" fill="#ffffff" />
                     <rect x="60" y="60" width="40" height="40" fill="#00AA13" rx="8" />
-                    <text x="80" y="86" fill="#ffffff" fontSize="20" fontWeight="900" textAnchor="middle">IT</text>
+                    <text x="80" y="86" fill="#ffffff" fontSize="18" fontWeight="900" textAnchor="middle">itego</text>
 
                     {/* Bottom Patterns */}
                     <rect x="60" y="115" width="12" height="12" fill="#000000" />
@@ -271,12 +465,96 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-3.5 rounded-2xl text-[11px] text-gray-600 space-y-1 border border-gray-200">
-                <p className="font-bold text-black">Cara Pembayaran QRIS:</p>
+              {/* MOCK QRIS VERIFICATION PANEL */}
+              <div className="bg-[#F8FAF9] p-3.5 rounded-2xl border border-[#00AA13]/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-[#00AA13]" />
+                    <span className="text-xs font-black text-black">
+                      Simulasi Verifikasi QRIS Otomatis
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-mono font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#00AA13] border border-[#00AA13]/30">
+                    TEST & DEMO
+                  </span>
+                </div>
+
+                {qrisStep === 'waiting' && (
+                  <>
+                    <p className="text-[11px] text-gray-600 leading-snug">
+                      Klik tombol simulasi di bawah untuk menguji deteksi pembayaran masuk. Sistem akan memverifikasi mutasi bank dan otomatis mengubah status pesanan Anda menjadi <strong className="text-[#00AA13]">LUNAS</strong>.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => triggerSimulatedQrisPayment('BCA Mobile')}
+                        className="flex-1 py-2.5 px-3 bg-[#00AA13] hover:bg-[#009310] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[0.98]"
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        <span>Simulasikan Bayar via m-Banking</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => triggerSimulatedQrisPayment('GoPay / ShopeePay')}
+                        className="py-2.5 px-3 bg-black hover:bg-gray-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[0.98]"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-[#00AA13]" />
+                        <span>Simulasi E-Wallet</span>
+                      </button>
+                    </div>
+
+                    {/* Auto-simulate countdown footer */}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200/60 text-[10px]">
+                      <div className="flex items-center gap-1.5 text-gray-500 font-mono">
+                        <Radio className="w-3 h-3 text-[#00AA13] animate-pulse" />
+                        <span>Auto-deteksi dalam: <strong className="text-black font-bold">{autoSimulateSeconds}s</strong></span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsAutoSimulateActive(!isAutoSimulateActive)}
+                        className="text-[10px] text-gray-500 hover:text-black font-semibold underline cursor-pointer"
+                      >
+                        {isAutoSimulateActive ? 'Jeda Auto-Deteksi' : 'Aktifkan Auto-Deteksi'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {detectedTx && (
+                  <div className="bg-white p-3 rounded-xl border border-gray-200 text-xs space-y-1.5">
+                    <div className="flex justify-between items-center text-[10px] text-gray-400 font-mono">
+                      <span>REF NO: {detectedTx.refId}</span>
+                      <span>{detectedTx.timestamp}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] text-gray-600 font-medium">Pengirim:</span>
+                      <span className="font-extrabold text-black text-[11px]">{detectedTx.source}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] text-gray-600 font-medium">Nominal:</span>
+                      <span className="font-extrabold text-[#00AA13]">{formatRupiah(detectedTx.amount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-gray-100 pt-1">
+                      <span className="text-[11px] text-gray-600 font-medium">Status Pembayaran:</span>
+                      <span className={`font-mono font-bold text-[10px] px-2 py-0.5 rounded-md ${
+                        qrisStep === 'verified'
+                          ? 'bg-[#E8F5E9] text-[#00AA13]'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {qrisStep === 'verified' ? '● LUNAS (TERVERIFIKASI)' : '● MEMVERIFIKASI MUTASI'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-50 p-3 rounded-2xl text-[11px] text-gray-600 space-y-1 border border-gray-200">
+                <p className="font-bold text-black">Panduan QRIS Asli:</p>
                 <p>1. Buka aplikasi m-Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, Dana, ShopeePay).</p>
-                <p>2. Pilih menu <strong>Scan QRIS</strong> dan arahkan kamera ke barcode di atas.</p>
-                <p>3. Pastikan nama penerima <strong>ITEGO TRANSPORT</strong> dan nominal tepat.</p>
-                <p>4. Masukkan PIN dan klik tombol <strong>"Saya Sudah Bayar"</strong> di bawah.</p>
+                <p>2. Arahkan kamera ke barcode di atas & selesaikan pembayaran.</p>
+                <p>3. Sistem ITEGO akan otomatis memverifikasi mutasi tanpa perlu upload bukti struk.</p>
               </div>
             </div>
           )}
@@ -375,20 +653,32 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <button
             type="button"
             disabled={isProcessing}
-            onClick={handleComplete}
+            onClick={handleManualComplete}
             className="btn-confirm-v16 w-full py-4 text-sm font-extrabold shadow-lg disabled:opacity-50"
           >
             {isProcessing ? (
-              <span>Memproses Pesanan Anda...</span>
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                {qrisStep === 'detecting'
+                  ? 'Memverifikasi Pembayaran Masuk...'
+                  : qrisStep === 'verified'
+                  ? 'Pembayaran Lunas! Menyiapkan Tiket...'
+                  : 'Memproses Pesanan Anda...'}
+              </span>
             ) : paymentMethod === 'tunai' ? (
               <>
                 <Check className="w-5 h-5 stroke-[3]" />
                 Konfirmasi Booking Tunai
               </>
+            ) : paymentMethod === 'qris' ? (
+              <>
+                <Sparkles className="w-5 h-5" />
+                Saya Sudah Bayar / Verifikasi Sekarang
+              </>
             ) : (
               <>
                 <Check className="w-5 h-5 stroke-[3]" />
-                Saya Sudah Bayar / Selesaikan Pesanan
+                Saya Sudah Transfer / Selesaikan Pesanan
               </>
             )}
           </button>

@@ -134,3 +134,23 @@ code, kbd, samp, pre, .font-mono, .label-v16, .price-tag, .ticket-code {
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1aa;
 }
+
+/* QRIS Laser Scanner Animation */
+@keyframes qris-scan {
+  0% {
+    top: 4%;
+    opacity: 0.85;
+  }
+  50% {
+    top: 92%;
+    opacity: 1;
+  }
+  100% {
+    top: 4%;
+    opacity: 0.85;
+  }
+}
+
+.animate-qris-scan {
+  animation: qris-scan 2.4s ease-in-out infinite;
+}

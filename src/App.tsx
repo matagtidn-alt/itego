@@ -291,12 +291,15 @@ export default function App() {
     setBookingDraft(null);
     setTicketModalBooking(finalBooking);
 
+    const isLunas = finalBooking.paymentStatus === 'lunas';
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
-      title: language === 'id' ? `Pesanan #${finalBooking.id} Berhasil!` : `Booking #${finalBooking.id} Confirmed!`,
+      title: language === 'id' 
+        ? `Pesanan #${finalBooking.id} ${isLunas ? 'Lunas & Aktif!' : 'Terkonfirmasi!'}` 
+        : `Booking #${finalBooking.id} ${isLunas ? 'Paid & Active!' : 'Confirmed!'}`,
       message: language === 'id' 
-        ? `Tiket Anda telah aktif. Hubungi driver via WhatsApp untuk konfirmasi penjemputan.`
-        : `Your digital ticket is ready. Chat driver on WhatsApp for instant confirmation.`,
+        ? `${isLunas ? 'Pembayaran QRIS berhasil diverifikasi (LUNAS). ' : ''}Tiket Anda telah aktif. Hubungi driver via WhatsApp untuk konfirmasi penjemputan.`
+        : `${isLunas ? 'QRIS payment verified (PAID). ' : ''}Your digital ticket is ready. Chat driver on WhatsApp for instant confirmation.`,
       type: 'order',
       isRead: false,
       timestamp: language === 'id' ? 'Baru saja' : 'Just now',
@@ -304,8 +307,10 @@ export default function App() {
     setNotifications((prev) => [newNotif, ...prev]);
 
     showToast(
-      language === 'id' ? 'Pesanan Berhasil Dibuat!' : 'Booking Created Successfully!',
-      language === 'id' ? `Tiket #${finalBooking.id} siap digunakan.` : `Ticket #${finalBooking.id} is active.`
+      language === 'id' 
+        ? (isLunas ? 'Pembayaran QRIS Lunas!' : 'Pesanan Berhasil Dibuat!') 
+        : (isLunas ? 'QRIS Payment Verified (Paid)!' : 'Booking Created!'),
+      language === 'id' ? `Tiket #${finalBooking.id} berstatus LUNAS & aktif.` : `Ticket #${finalBooking.id} is PAID and active.`
     );
   };
 

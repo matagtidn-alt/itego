@@ -116,8 +116,18 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
 
                 <div className="text-right flex sm:flex-col items-center sm:items-end justify-between">
                   <span className="text-base font-extrabold text-[#00AA13]">{formatRupiah(order.totalPrice)}</span>
-                  <span className="text-[11px] text-gray-500 font-medium">
-                    {order.paymentMethod === 'tunai' ? 'Bayar di Tempat (Tunai)' : 'Lunas (QRIS/Bank)'}
+                  <span className={`text-[11px] font-extrabold ${
+                    order.paymentStatus === 'lunas'
+                      ? 'text-[#00AA13]'
+                      : order.paymentMethod === 'tunai'
+                      ? 'text-amber-600'
+                      : 'text-gray-500'
+                  }`}>
+                    {order.paymentStatus === 'lunas' 
+                      ? '● LUNAS (QRIS Terverifikasi)' 
+                      : order.paymentMethod === 'tunai' 
+                      ? '● Bayar di Tempat (Tunai)' 
+                      : '● Menunggu Verifikasi'}
                   </span>
                 </div>
               </div>

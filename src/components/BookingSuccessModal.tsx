@@ -84,8 +84,14 @@ export const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({
                 <span className="text-[10px] font-mono font-extrabold uppercase px-3 py-1 rounded-full bg-[#E8F5E9] text-[#00AA13] border border-[#00AA13]/30">
                   {booking.bookingStatus}
                 </span>
-                <p className="text-[10px] text-gray-500 mt-1 font-medium">
-                  {booking.paymentMethod === 'tunai' ? 'Bayar Tunai di Tempat' : 'Lunas (QRIS/Transfer)'}
+                <p className="text-[10px] font-extrabold mt-1">
+                  {booking.paymentStatus === 'lunas' ? (
+                    <span className="text-[#00AA13]">✓ LUNAS (QRIS Terverifikasi)</span>
+                  ) : booking.paymentMethod === 'tunai' ? (
+                    <span className="text-amber-600">Bayar Tunai di Tempat</span>
+                  ) : (
+                    <span className="text-gray-500">Menunggu Pembayaran</span>
+                  )}
                 </p>
               </div>
             </div>
